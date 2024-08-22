@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Application with Timers</title>
+    <style>
+        /* CSS Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .quiz-container {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .timer-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .timer {
+            font-size: 24px;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 5px;
+            background-color: #e9ecef;
+        }
+
+        .question-number {
+            margin-bottom: 15px;
+            font-size: 18px;
+            color: #6c757d;
+        }
+
+        .question {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .options {
+            list-style-type: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+
+        .options li {
+            margin: 10px 0;
+        }
+
+        .option-button {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border: 2px solid #007bff;
+            border-radius: 5px;
+            background-color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .option-button:hover {
+            background-color: #007bff;
+            color: #fff;
+        }
+
+        .result-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .result {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .restart-button {
+            padding: 12px 25px;
+            font-size: 18px;
+            border: none;
+            border-radius: 5px;
+            background-color: #28a745;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .restart-button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="quiz-container" id="quizContainer">
+        <div class="timer-container">
+            <div class="timer" id="quizTimer">Total Time: 05:00</div>
+            <div class="timer" id="questionTimer">Question Time: 00:30</div>
+        </div>
+        <div class="question-number" id="questionNumber">Question 1 of 5</div>
+        <div class="question" id="question">Loading question...</div>
+        <ul class="options" id="options">
+            <!-- Options will be loaded here dynamically -->
+        </ul>
+    </div>
+
+    <div class="quiz-container result-container" id="resultContainer">
+        <div class="result" id="resultText">You scored 0 out of 5</div>
+        <button class="restart-button" onclick="restartQuiz()">Restart Quiz</button>
+    </div>
+
+    <script>
+        // JavaScript Logic
+
+        // Quiz Data
+        const quizData = [
+            {
+                question: "What is the capital of France?",
+                options: ["Paris", "London", "Berlin", "Madrid"],
+                answer: "Paris"
+            },
+            {
+                question: "Which planet is known as the Red Planet?",
+                options: ["Earth", "Mars", "Jupiter", "Venus"],
+                answer: "Mars"
+            },
+            {
+                question: "Who wrote 'Romeo and Juliet'?",
+                options: ["William Shakespeare", "Mark Twain", "Charles Dickens", "Jane Austen"],
+                answer: "William Shakespeare"
+            },
+            {
+                question: "What is the largest ocean on Earth?",
+                options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+                answer: "Pacific Ocean"
+            },
+            {
+                question: "What is the chemical symbol for water?",
+                options: ["O2", "H2O", "CO2", "NaCl"],
+                answer: "H2O"
+            },
+                   {
+                question: "Who wrote 'Romeo and Juliet'?",
+                options: ["William Shakespeare", "Mark Twain", "Charles Dickens", "Jane Austen"],
+                answer: "William Shakespeare"
+            },
+            {
+                question: "What is the largest ocean on Earth?",
+                options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+                answer: "Pacific Ocean"
+            },
+            {
+                question: "What is the chemical symbol for water?",
+                options: ["O2", "H2O", "CO2", "NaCl"],
+                answer: "H2O"
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let totalQuizTime = 300; // in seconds (5 minutes)
+        let questionTime = 30; // in seconds
+        let quizTimerInterval;
+        let questionTimerInterval;
+        let quizStarted = false;
+
+        const quizContainer = document.getElementById('quizContainer');
+        const resultContainer = document.getElementById('resultContainer');
+        const quizTimerEl = document.getElementById('quizTimer');
+        const questionTimerEl = document.getElementById('questionTimer');
+        const questionNumberEl = document.getElementById('questionNumber');
+        const questionEl = document.getElementById('question');
+        const optionsEl = document.getElementById('options');
+        const resultTextEl = document.getElementById('resultText');
+
+        // Start Quiz Function
+        function startQuiz() {
+            if (quizStarted) return;
+            quizStarted = true;
+            loadQuestion();
+            startQuizTimer();
+            startQuestionTimer();
+
+            // Disable further Enter key starts
+            document.removeEventListener('keydown', handleEnterKey);
+        }
+
+        // Load Question Function
+        function loadQuestion() {
+            resetQuestionTimer();
+            const currentQuestion = quizData[currentQuestionIndex];
+            questionNumberEl.textContent = `Question ${currentQuestionIndex + 1} of ${quizData.length}`;
+            questionEl.textContent = currentQuestion.question;
+            optionsEl.innerHTML = '';
+
+            currentQuestion.options.forEach(option => {
+                const li = document.createElement('li');
+                const button = document.createElement('button');
+                button.classList.add('option-button');
+                button.textContent = option;
+                button.addEventListener('click', () => selectOption(option));
+                li.appendChild(button);
+                optionsEl.appendChild(li);
+            });
+        }
+
+        // Select Option Function
+        function selectOption(selectedOption) {
+            const currentQuestion = quizData[currentQuestionIndex];
+            if (selectedOption === currentQuestion.answer) {
+                score++;
+            }
+            moveToNextQuestion();
+        }
+
+        // Move to Next Question Function
+        function moveToNextQuestion() {
+            clearInterval(questionTimerInterval);
+            currentQuestionIndex++;
+            if (currentQuestionIndex < quizData.length) {
+                loadQuestion();
+            } else {
+                endQuiz();
+            }
+        }
+
+        // Start Quiz Timer Function
+        function startQuizTimer() {
+            updateQuizTimerDisplay();
+            quizTimerInterval = setInterval(() => {
+                totalQuizTime--;
+                if (totalQuizTime <= 0) {
+                    endQuiz();
+                }
+                updateQuizTimerDisplay();
+            }, 1000);
+        }
+
+        // Update Quiz Timer Display Function
+        function updateQuizTimerDisplay() {
+            const minutes = Math.floor(totalQuizTime / 60);
+            const seconds = totalQuizTime % 60;
+            quizTimerEl.textContent = `Total Time: ${formatTime(minutes)}:${formatTime(seconds)}`;
+        }
+
+        // Start Question Timer Function
+        function startQuestionTimer() {
+            questionTime = 30;
+            updateQuestionTimerDisplay();
+            questionTimerInterval = setInterval(() => {
+                questionTime--;
+                if (questionTime <= 0) {
+                    moveToNextQuestion();
+                }
+                updateQuestionTimerDisplay();
+            }, 1000);
+        }
+
+        // Reset Question Timer Function
+        function resetQuestionTimer() {
+            clearInterval(questionTimerInterval);
+            startQuestionTimer();
+        }
+
+        // Update Question Timer Display Function
+        function updateQuestionTimerDisplay() {
+            const seconds = questionTime;
+            questionTimerEl.textContent = `Question Time: 00:${formatTime(seconds)}`;
+        }
+
+        // Format Time Function
+        function formatTime(time) {
+            return time < 10 ? `0${time}` : time;
+        }
+
+        // End Quiz Function
+        function endQuiz() {
+            clearInterval(quizTimerInterval);
+            clearInterval(questionTimerInterval);
+            quizContainer.style.display = 'none';
+            resultTextEl.textContent = `You scored ${score} out of ${quizData.length}`;
+            resultContainer.style.display = 'flex';
+        }
+
+        // Restart Quiz Function
+        function restartQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            totalQuizTime = 300;
+            quizStarted = false;
+            quizContainer.style.display = 'block';
+            resultContainer.style.display = 'none';
+            document.addEventListener('keydown', handleEnterKey);
+        }
+
+        // Handle Enter Key Function
+        function handleEnterKey(event) {
+            if (event.key === 'Enter') {
+                startQuiz();
+            }
+        }
+
+        // Event Listener for Enter Key to Start Quiz
+        document.addEventListener('keydown', handleEnterKey);
+
+        // Initial Display Setup
+        questionEl.textContent = 'Press "Enter" to start the quiz';
+        optionsEl.innerHTML = '';
+        quizTimerEl.textContent = 'Total Time: 05:00';
+        questionTimerEl.textContent = 'Question Time: 00:30';
+    </script>
+
+</body>
+</html>
